@@ -168,6 +168,9 @@ from PIL import Image as PILImage
 
 app = Flask(__name__)
 
+# 🔥 Limit upload size (50MB)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "outputs"
 
@@ -190,7 +193,7 @@ def detect_image_columns(df):
     return image_columns
 
 
-# 🔥 Strict image fetch (NO SKIP)
+# 🔥 Fetch image with retry
 def fetch_image_strict(value):
     if not value or not isinstance(value, str):
         return None
@@ -198,11 +201,11 @@ def fetch_image_strict(value):
     if value.lower().endswith(".pdf"):
         return "PDF"
 
-    for attempt in range(5):
+    for attempt in range(3):
         try:
             response = requests.get(
                 value,
-                timeout=10,
+                timeout=8,
                 headers={"User-Agent": "Mozilla/5.0"}
             )
 
@@ -230,9 +233,9 @@ def create_excel_from_csv(csv_path, output_path):
     print("Detected Image Columns:", image_columns)
 
     all_columns = list(df.columns)
-
     ws.append(all_columns)
 
+    # Set column width
     for i in range(len(all_columns)):
         ws.column_dimensions[get_column_letter(i + 1)].width = 20
 
@@ -273,20 +276,17 @@ def create_excel_from_csv(csv_path, output_path):
 
                     except Exception as e:
                         print("Image Error:", e)
-                        ws.cell(row=row_num, column=col_index, value="Unsupported")
+                        ws.cell(row=row_num, column=col_index, value="No Image")
 
                 elif result == "PDF":
                     ws.cell(row=row_num, column=col_index, value="PDF")
 
                 else:
-                    ws.cell(row=row_num, column=col_index, value="FAILED")
+                    ws.cell(row=row_num, column=col_index, value="No Image")
 
             col_index += 1
 
         row_num += 1
-
-        # reduce delay (important for hosting)
-        time.sleep(0.2)
 
     wb.save(output_path)
     return True
@@ -296,15 +296,16 @@ def create_excel_from_csv(csv_path, output_path):
 def index():
     if request.method == "POST":
         try:
-            file = request.files["file"]
+            file = request.files.get("file")
 
-            if file.filename == "":
+            if not file or file.filename == "":
                 return "No file selected"
 
+            # Save upload
             upload_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(upload_path)
 
-            # unique output file (important)
+            # Unique output file
             output_path = os.path.join(
                 OUTPUT_FOLDER,
                 f"output_{int(time.time())}.xlsx"
@@ -324,7 +325,8 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
+    port = int(os.environ.get("PORT", 3000))
+    app.run(host="0.0.0.0", port=port)
 # .........
 # import os
 # import pandas as pd
