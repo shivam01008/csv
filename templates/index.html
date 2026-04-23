@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV to Excel with Images</title>
+</head>
+<body>
+
+<h2>Upload CSV File</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" required>
+    <br><br>
+    <button type="submit">Generate Excel</button>
+</form>
+
+<p>CSV format:</p>
+<pre>
+name,email,image1,image2
+John,john@email.com,https://example.com/img1.jpg,https://example.com/img2.jpg
+</pre>
+
+</body>
+</html>
